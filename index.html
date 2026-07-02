@@ -1008,19 +1008,32 @@ let listId = null;
 let selectedFiles = [];
 // ═══════════════ AUTH ═══════════════
 async function init() {
-  await msalInstance.handleRedirectPromise();
-  const accounts = msalInstance.getAllAccounts();
-  if (accounts.length === 0) {
-    setLoadingMsg('Redirecting to sign in...');
-    await msalInstance.loginRedirect({ scopes });
-    return;
+  try {
+    // Skip redirect handling entirely - we only use popup auth
+    const accounts = msalInstance.getAllAccounts();
+    if (accounts.length === 0) {
+      setLoadingMsg('Signing in...');
+      await msalInstance.loginPopup({ scopes });
+    }
+    const finalAccounts = msalInstance.getAllAccounts();
+    if (finalAccounts.length === 0) {
+      setLoadingMsg('Not signed in. Please refresh.');
+      return;
+    }
+    currentUser = finalAccounts[0];
+    setLoadingMsg('Loading...');
+    await getSiteAndListIds();
+    await loadStats();
+    document.getElementById('loadingScreen').style.display = 'none';
+    document.getElementById('appShell').style.display = 'flex';
+  } catch (e) {
+    if (e.errorCode === 'BrowserAuthError') {
+      setLoadingMsg('Auth error. Please refresh browser and try again.');
+    } else {
+      setLoadingMsg('Error: ' + (e.message || 'Unknown error'));
+    }
+    console.error('Init error:', e);
   }
-  currentUser = accounts[0];
-  setLoadingMsg('Loading...');
-  await getSiteAndListIds();
-  await loadStats();
-  document.getElementById('loadingScreen').style.display = 'none';
-  document.getElementById('appShell').style.display = 'flex';
 }
 function setLoadingMsg(msg) {
   document.getElementById('loadingMsg').textContent = msg;
